@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AiDash">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>AiDash 个人生活驾驶舱</title>
+<style>
+  :root {
+    --ink: #111;
+    --muted: #767676;
+    --hair: #e6e6e6;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #fff; color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "PingFang SC",
+      "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+
+  /* 顶部标题栏 */
+  .app-header {
+    position: sticky; top: 0; z-index: 5;
+    background: #fff; border-bottom: 1px solid var(--hair);
+    padding: calc(env(safe-area-inset-top) + 12px) 18px 10px;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .brand { font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+  .header-date { font-size: 13px; color: var(--muted); }
+
+  /* 面板：沿用 Kindle 仪表盘的白底黑框、左黑条标题 */
+  .panel {
+    background: #fff; border: 1.5px solid var(--ink); border-radius: var(--radius);
+    margin: 12px 14px; padding: 14px 16px;
+  }
+  .panel h2 {
+    font-size: 15px; letter-spacing: 2px; margin: 0 0 10px;
+    padding: 0 0 6px 10px; border-left: 5px solid #000; border-bottom: 1px solid var(--hair);
+  }
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 6px 0 0; }
+
+  /* 表单 */
+  label.field { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; letter-spacing: .5px; }
+  textarea, input[type=text], input[type=date], input[type=number], input[type=password], input[type=url] {
+    width: 100%; border: 1.5px solid var(--ink); border-radius: 10px;
+    padding: 10px 12px; font-size: 16px; font-family: inherit;
+    background: #fff; color: var(--ink); outline: none;
+  }
+  textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
+  input:focus, textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 2px rgba(0,0,0,.08); }
+
+  /* 按钮 */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: #fff; border: 1.5px solid var(--ink); border-radius: 12px;
+    padding: 11px 16px; font-size: 15px; font-weight: 600; color: var(--ink); font-family: inherit;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .5; }
+  .btn-primary { background: #111; color: #fff; border-color: #111; width: 100%; padding: 13px 16px; }
+  .btn-row { display: flex; gap: 10px; margin: 12px 14px; }
+  .btn-row .btn { flex: 1; width: auto; }
+
+  /* 拍照行与图片预览 */
+  .photo-row { display: flex; gap: 10px; margin-top: 10px; }
+  .photo-row .btn { flex: 1; }
+  .preview-wrap { position: relative; margin-top: 10px; }
+  .preview-wrap img {
+    width: 100%; max-height: 220px; object-fit: contain;
+    border: 1px solid var(--hair); border-radius: 10px; background: #fafafa;
+  }
+  .preview-wrap .btn { position: absolute; top: 8px; right: 8px; padding: 6px 12px; font-size: 13px; }
+
+  /* 状态文字 */
+  .status { font-size: 13px; color: var(--muted); text-align: center; padding: 8px 14px; line-height: 1.5; }
+  .status.err { color: #c00000; }
+
+  /* 待办行 */
+  .todo-row { display: flex; align-items: flex-start; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--hair); }
+  .todo-row:last-child { border-bottom: none; }
+  .todo-row > input[type=checkbox] { width: 20px; height: 20px; accent-color: #111; margin-top: 4px; flex: none; }
+  .todo-main { flex: 1; min-width: 0; }
+  .todo-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .todo-text { font-size: 15px; line-height: 1.4; word-break: break-all; }
+  .todo-done .todo-text { text-decoration: line-through; color: var(--muted); }
+  .todo-edit { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .todo-edit input[type=text] { flex: 2; min-width: 120px; padding: 6px 8px; font-size: 14px; }
+  .todo-edit input[type=date] { flex: 1; min-width: 120px; padding: 6px 8px; font-size: 14px; }
+  select.pri {
+    border: 1px solid var(--ink); border-radius: 8px; padding: 4px 6px;
+    font-size: 13px; background: #fff; color: var(--ink); font-family: inherit;
+  }
+  button.x {
+    border: 1px solid var(--ink); border-radius: 8px; background: #fff; color: var(--ink);
+    width: 30px; height: 30px; font-size: 16px; line-height: 1; flex: none;
+  }
+  button.x:active { background: #f2f2f2; }
+
+  /* 优先级徽标 */
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--ink); flex: none; }
+  .badge-高 { background: #111; color: #fff; }
+  .badge-中 { background: #fff; color: #111; }
+  .badge-低 { background: #fff; color: #767676; border-color: #999; }
+
+  /* 倒计时行 */
+  .count-row { display: flex; align-items: flex-start; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--hair); }
+  .count-row:last-child { border-bottom: none; }
+  .count-info { flex: 1; min-width: 0; }
+  .count-name { font-size: 15px; word-break: break-all; }
+  .count-days { font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 5px; }
+  .count-days.today { color: #c00000; }
+  .count-edit { display: flex; gap: 6px; margin-top: 6px; }
+  .count-edit input[type=text] { flex: 2; min-width: 110px; padding: 6px 8px; font-size: 14px; }
+  .count-edit input[type=date] { flex: 1; min-width: 120px; padding: 6px 8px; font-size: 14px; }
+
+  /* 空状态 */
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 18px 0; line-height: 1.6; }
+
+  /* AI 结果 */
+  .res-block { margin-top: 8px; }
+  .res-block h3 { font-size: 13px; letter-spacing: 1px; margin: 12px 0 4px; padding-left: 8px; border-left: 4px solid #000; }
+  .summary { font-size: 14px; line-height: 1.6; margin-top: 6px; }
+  .plan-item { font-size: 14px; line-height: 1.5; padding: 4px 0 4px 8px; border-left: 3px solid #999; margin: 3px 0; }
+  .reason { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  details { margin-top: 10px; }
+  summary { font-size: 13px; color: var(--muted); cursor: pointer; }
+  pre.md {
+    background: #fafafa; border: 1px solid var(--hair); border-radius: 10px; padding: 10px;
+    font-size: 12px; white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; margin: 8px 0 0;
+  }
+
+  /* 布局设置 */
+  .layout-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+  .layout-row .name { flex: 1; font-size: 14px; }
+  .layout-row button { width: 34px; height: 30px; border: 1px solid var(--ink); border-radius: 8px; background: #fff; font-size: 14px; font-family: inherit; }
+  .layout-row button:disabled { opacity: .3; }
+  .height-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .height-row label { flex: 1; font-size: 13px; color: var(--ink); }
+  .height-row input { width: 90px; padding: 6px 8px; font-size: 14px; }
+
+  /* iOS 风格开关 */
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; font-size: 14px; }
+  .switch input { display: none; }
+  .switch .track { width: 48px; height: 29px; border-radius: 15px; background: #e5e5ea; position: relative; flex: none; transition: background .2s; }
+  .switch .track::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 25px; height: 25px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .2s;
+  }
+  .switch input:checked + .track { background: #111; }
+  .switch input:checked + .track::after { left: 21px; }
+
+  /* 底部 Tab 栏（iOS 风格） */
+  .tab-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: rgba(255,255,255,.97); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--hair); display: flex; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab-bar button {
+    flex: 1; border: none; background: transparent; padding: 8px 0 7px;
+    font-size: 11px; color: var(--muted); font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .tab-bar button.active { color: #000; }
+  .tab-bar svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">AiDash<span class="dot">.</span></div>
+  <div class="header-date" id="headerDate"></div>
+</header>
+
+<main>
+  <!-- ===== 记录页 ===== -->
+  <section id="tab-record" class="tab-page active">
+    <div class="panel">
+      <h2>随手记</h2>
+      <label class="field" for="inputText">说点什么，或拍一张便签 / 截图</label>
+      <textarea id="inputText" placeholder="例如：周六前把房租转给房东；10月3日参加婚礼；今晚记得买牛奶…"></textarea>
+      <div class="photo-row">
+        <button type="button" class="btn" id="btnCamera">📷 拍照</button>
+        <button type="button" class="btn" id="btnGallery">🖼 相册</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <div id="previewWrap" class="preview-wrap" hidden>
+        <img id="previewImg" alt="待识别图片">
+        <button type="button" class="btn" id="btnRemoveImg">移除</button>
+      </div>
+      <div style="margin-top:12px">
+        <button type="button" class="btn btn-primary" id="btnProcess">AI 秘书处理</button>
+      </div>
+      <div id="procStatus" class="status"></div>
+    </div>
+
+    <div id="resultPanel" class="panel" hidden>
+      <h2>秘书安排</h2>
+      <div class="summary" id="resultSummary"></div>
+      <div class="res-block" id="resultPlanWrap">
+        <h3>今日安排</h3>
+        <div id="resultPlan"></div>
+      </div>
+      <div class="res-block" id="resultTodosWrap">
+        <h3>待办建议（可修改）</h3>
+        <div id="resultTodos"></div>
+      </div>
+      <div class="res-block" id="resultCountdownsWrap">
+        <h3>倒计时建议</h3>
+        <div id="resultCountdowns"></div>
+      </div>
+      <div class="res-block" id="resultNotesWrap">
+        <h3>笔记</h3>
+        <div id="resultNotes"></div>
+      </div>
+      <div class="res-block" id="resultShoppingWrap">
+        <h3>购物清单</h3>
+        <div id="resultShopping"></div>
+      </div>
+      <details>
+        <summary>Markdown 预览</summary>
+        <pre class="md" id="resultMarkdown"></pre>
+      </details>
+      <div class="btn-row">
+        <button type="button" class="btn" id="btnAdoptAll">一键采纳</button>
+        <button type="button" class="btn btn-primary" id="btnSave">保存到云端</button>
+      </div>
+      <div id="saveStatus" class="status"></div>
+      <p class="hint">默认全部勾选 = 采纳；取消勾选 = 忽略。保存后待办会出现在“待办”页，并写入 GitHub。</p>
+    </div>
+  </section>
+
+  <!-- ===== 待办页 ===== -->
+  <section id="tab-todo" class="tab-page">
+    <div class="panel">
+      <h2>安排 / 待办</h2>
+      <div id="todoList"></div>
+      <div class="todo-edit" style="margin-top:10px">
+        <input type="text" id="newTodoText" placeholder="新待办内容">
+        <button type="button" class="btn" id="btnAddTodo">添加</button>
+      </div>
+    </div>
+    <div class="btn-row"><button type="button" class="btn btn-primary" id="btnSaveTodo">保存到云端</button></div>
+    <div id="todoStatus" class="status"></div>
+  </section>
+
+  <!-- ===== 倒计时页 ===== -->
+  <section id="tab-count" class="tab-page">
+    <div class="panel">
+      <h2>倒计时</h2>
+      <div id="countList"></div>
+      <div class="count-edit" style="margin-top:10px">
+        <input type="text" id="newCountName" placeholder="名称，如：婚礼">
+        <input type="date" id="newCountDate">
+        <button type="button" class="btn" id="btnAddCount">添加</button>
+      </div>
+    </div>
+    <div class="btn-row"><button type="button" class="btn btn-primary" id="btnSaveCount">保存到云端</button></div>
+    <div id="countStatus" class="status"></div>
+  </section>
+
+  <!-- ===== 设置页 ===== -->
+  <section id="tab-settings" class="tab-page">
+    <div class="panel">
+      <h2>连接</h2>
+      <label class="field" for="setApi">Vercel 后端地址（C 部分部署后填写）</label>
+      <input type="url" id="setApi" placeholder="https://aidash-xxxx.vercel.app">
+      <label class="field" for="setRaw">GitHub 数据地址（raw）</label>
+      <input type="url" id="setRaw" placeholder="https://raw.githubusercontent.com/用户名/aidash/main">
+      <label class="field" for="setPin">口令（与后端 APP_PIN 一致，4~6 位）</label>
+      <input type="password" id="setPin" placeholder="••••" inputmode="numeric">
+      <div style="margin-top:12px"><button type="button" class="btn btn-primary" id="btnSaveConn">保存连接</button></div>
+      <div id="connStatus" class="status"></div>
+      <p class="hint">口令只保存在本机浏览器，不写入 GitHub。</p>
+    </div>
+
+    <div class="panel">
+      <h2>位置与天气</h2>
+      <label class="field" for="setCity">城市名</label>
+      <input type="text" id="setCity">
+      <div class="todo-edit">
+        <div style="flex:1"><label class="field" for="setLat">纬度</label><input type="text" id="setLat" placeholder="27.99"></div>
+        <div style="flex:1"><label class="field" for="setLon">经度</label><input type="text" id="setLon" placeholder="120.70"></div>
+      </div>
+      <div style="margin-top:12px"><button type="button" class="btn btn-primary" id="btnSaveLoc">保存位置</button></div>
+      <div id="locStatus" class="status"></div>
+    </div>
+
+    <div class="panel">
+      <h2>版块布局</h2>
+      <p class="hint">调整每日 Kindle 仪表盘各版块的顺序与高度（单位 px，整图 1072×1448）。</p>
+      <div id="layoutList"></div>
+      <div style="margin-top:12px"><button type="button" class="btn btn-primary" id="btnSaveLayout">保存布局</button></div>
+      <div id="layoutStatus" class="status"></div>
+    </div>
+
+    <div class="panel">
+      <h2>其他</h2>
+      <label class="switch">AI 返回后自动采纳并保存
+        <input type="checkbox" id="autoAdopt"><span class="track"></span>
+      </label>
+      <p class="hint">开启后，“AI 秘书处理”完成会自动采纳全部建议并保存云端；关闭则先预览确认。</p>
+      <div class="btn-row" style="margin-left:0;margin-right:0">
+        <button type="button" class="btn" id="btnCloudRefresh">从云端刷新</button>
+        <button type="button" class="btn" id="btnClearCache">清空本地缓存</button>
+      </div>
+      <div id="settingsStatus" class="status"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="tab-bar">
+  <button data-tab="record" class="active">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    记录
+  </button>
+  <button data-tab="todo">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><polyline points="8,12 11,15 16,9"/></svg>
+    待办
+  </button>
+  <button data-tab="count">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 15,14"/></svg>
+    倒计时
+  </button>
+  <button data-tab="settings">
+    <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+    设置
+  </button>
+</nav>
+
+<script src="config.js"></script>
+<script>
+/* ================================================================
+   AiDash 手机端逻辑（B 部分）
+   数据先存浏览器本地，点“保存到云端”后由 Vercel 后端写入 GitHub。
+   口令 / 后端地址只在“设置”页填写，绝不写进代码仓库。
+   ================================================================ */
+(function () {
+  "use strict";
+
+  /* ---------- 工具 ---------- */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function escAttr(s) { return esc(s).replace(/"/g, "&quot;"); }
+  function nowISO() { return new Date().toISOString(); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function setStatus(id, msg, isErr) {
+    var el = $(id);
+    if (!el) { return; }
+    el.textContent = msg || "";
+    el.className = "status" + (isErr ? " err" : "");
+  }
+
+  /* ---------- 配置与本地数据 ---------- */
+  var CFG = window.AIDASH_CONFIG || {};
+  var LS_DATA = "aidash_data_v1";
+  var LS_PIN = "aidash_pin";
+  var LS_API = "aidash_api";
+  var LS_RAW = "aidash_raw";
+
+  var MODULE_LABELS = {
+    header: "日期时间", weather: "天气", feeds: "资讯热榜",
+    countdown: "倒计时", todo: "安排/待办", notes: "AI 笔记", quote: "每日一言"
+  };
+  var PRIORITIES = ["高", "中", "低"];
+
+  function defaults() {
+    var lay = (CFG.DEFAULT_LAYOUT || {}).order || ["header", "weather", "feeds", "countdown", "todo", "notes", "quote"];
+    var heights = (CFG.DEFAULT_LAYOUT || {}).heights || { weather: 170, feeds: 300, countdown: 150, todo: 240, notes: 180, quote: 90 };
+    return {
+      version: 1,
+      updatedAt: "",
+      todos: [], countdowns: [], notes: [], shopping: [],
+      layout: { order: lay.slice(), heights: Object.assign({}, heights) },
+      settings: Object.assign({ city: "温州", lat: "27.99", lon: "120.70", autoAdopt: false }, CFG.DEFAULT_SETTINGS || {})
+    };
+  }
+
+  function normalize(d) {
+    var base = defaults();
+    d = d && typeof d === "object" ? d : {};
+    d.version = 1;
+    d.updatedAt = d.updatedAt || "";
+    d.todos = Array.isArray(d.todos) ? d.todos : [];
+    d.countdowns = Array.isArray(d.countdowns) ? d.countdowns : [];
+    d.notes = Array.isArray(d.notes) ? d.notes : [];
+    d.shopping = Array.isArray(d.shopping) ? d.shopping : [];
+    d.layout = Object.assign({}, base.layout, d.layout || {});
+    d.layout.order = (Array.isArray(d.layout.order) && d.layout.order.length) ? d.layout.order : base.layout.order;
+    d.layout.heights = Object.assign({}, base.layout.heights, d.layout.heights || {});
+    d.settings = Object.assign({}, base.settings, d.settings || {});
+    return d;
+  }
+
+  var data = defaults();
+
+  function loadData() {
+    try {
+      var s = localStorage.getItem(LS_DATA);
+      if (s) { data = normalize(JSON.parse(s)); }
+    } catch (e) { /* 缓存损坏时使用默认值 */ }
+  }
+  function persistData() {
+    try { localStorage.setItem(LS_DATA, JSON.stringify(data)); } catch (e) {}
+  }
+
+  function getPin() { return (localStorage.getItem(LS_PIN) || "").trim(); }
+  function getApi() { return (localStorage.getItem(LS_API) || CFG.API_BASE || "").replace(/\/+$/, ""); }
+  function getRaw() { return (localStorage.getItem(LS_RAW) || CFG.RAW_BASE || "").replace(/\/+$/, ""); }
+
+  /* ---------- 网络 ---------- */
+  function postJSON(url, body) {
+    return new Promise(function (resolve, reject) {
+      var ctrl = ("AbortController" in window) ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctrl) { ctrl.abort(); } }, 30000);
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: ctrl ? ctrl.signal : undefined
+      }).then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (j) {
+          if (!r.ok) {
+            var m = (j && (j.error || j.message)) || ("HTTP " + r.status);
+            if (r.status === 401) { m = "口令错误（HTTP 401）"; }
+            var err = new Error(m);
+            err.status = r.status;
+            throw err;
+          }
+          resolve(j);
+        });
+      }).catch(function (e) {
+        if (e && e.name === "AbortError") { reject(new Error("请求超时，请检查网络和后端地址")); }
+        else { reject(e); }
+      }).finally(function () { clearTimeout(timer); });
+    });
+  }
+
+  /* ---------- Tab 切换 ---------- */
+  function showTab(name) {
+    document.querySelectorAll(".tab-page").forEach(function (p) { p.classList.toggle("active", p.id === "tab-" + name); });
+    document.querySelectorAll(".tab-bar button").forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
+  }
+
+  /* ---------- 记录页：图片压缩 ---------- */
+  var pendingImage = null;
+  var aiResult = null;
+  var adopt = { todos: [], countdowns: [], notes: [], shopping: [] };
+  var processing = false;
+
+  function fileToDataURL(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var qualities = [0.8, 0.6, 0.45];
+          var idx = 0;
+          function tryQuality() {
+            if (idx >= qualities.length) { reject(new Error("图片太大，压缩失败")); return; }
+            var q = qualities[idx++];
+            var maxSide = 1280;
+            var scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+            var w = Math.max(1, Math.round(img.width * scale));
+            var h = Math.max(1, Math.round(img.height * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            var ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            var url = canvas.toDataURL("image/jpeg", q);
+            if (url.length > 4.2e6) { tryQuality(); return; }
+            resolve(url);
+          }
+          tryQuality();
+        };
+        img.onerror = function () { reject(new Error("图片无法解析")); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function () { reject(new Error("文件读取失败")); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* ---------- 记录页：AI 处理与结果 ---------- */
+  function normalizeAI(r) {
+    r = r || {};
+    function str(v) { return String(v == null ? "" : v).trim(); }
+    function pickPriority(p) { return PRIORITIES.indexOf(p) >= 0 ? p : "中"; }
+    var todos = (Array.isArray(r.todos) ? r.todos : []).map(function (t) {
+      t = t || {};
+      return { text: str(t.text), priority: pickPriority(t.priority), dueDate: str(t.dueDate), reason: str(t.reason) };
+    }).filter(function (t) { return t.text; });
+    var countdowns = (Array.isArray(r.countdowns) ? r.countdowns : []).map(function (c) {
+      c = c || {};
+      return { name: str(c.name), date: str(c.date) };
+    }).filter(function (c) { return c.name && /^\d{4}-\d{2}-\d{2}$/.test(c.date); });
+    var notes = (Array.isArray(r.notes) ? r.notes : []).map(function (n) {
+      n = n || {};
+      return { text: str(n.text), tags: Array.isArray(n.tags) ? n.tags.map(String) : [] };
+    }).filter(function (n) { return n.text; });
+    var shopping = (Array.isArray(r.shopping) ? r.shopping : []).map(function (s) {
+      s = (s && typeof s === "object") ? s : { text: s };
+      return { text: str(s.text) };
+    }).filter(function (s) { return s.text; });
+    return {
+      summary: str(r.summary),
+      plan: Array.isArray(r.plan) ? r.plan : [],
+      todos: todos, countdowns: countdowns, notes: notes, shopping: shopping,
+      markdown: str(r.markdown)
+    };
+  }
+
+  function planText(p) {
+    if (typeof p === "string") { return p; }
+    if (p && typeof p === "object") {
+      var t = p.time || "";
+      var a = p.action || p.text || "";
+      return t ? (a + "（" + t + "）") : a;
+    }
+    return "";
+  }
+
+  function renderResult() {
+    if (!aiResult) { return; }
+    $("resultSummary").textContent = aiResult.summary ? "总结：" + aiResult.summary : "";
+
+    var planHtml = aiResult.plan.map(function (p) {
+      return '<div class="plan-item">' + esc(planText(p)) + "</div>";
+    }).join("");
+    $("resultPlan").innerHTML = planHtml || '<div class="empty">没有安排建议</div>';
+    $("resultPlanWrap").style.display = aiResult.plan.length ? "" : "none";
+
+    $("resultTodos").innerHTML = aiResult.todos.map(function (t, i) {
+      return '<div class="todo-row">' +
+        '<input type="checkbox" data-k="todos" data-i="' + i + '"' + (adopt.todos[i] ? " checked" : "") + ">" +
+        '<div class="todo-main">' +
+        '<div class="todo-line"><span class="badge badge-' + esc(t.priority) + '">' + esc(t.priority) + "</span>" +
+        '<span class="todo-text">' + esc(t.text) + "</span></div>" +
+        '<div class="todo-edit">' +
+        '<input type="date" class="res-date" data-k="todos" data-i="' + i + '" value="' + escAttr(t.dueDate || "") + '">' +
+        '<select class="pri res-pri" data-k="todos" data-i="' + i + '">' +
+        PRIORITIES.map(function (p) { return '<option' + (t.priority === p ? " selected" : "") + ">" + p + "</option>"; }).join("") +
+        "</select></div>" +
+        (t.reason ? '<div class="reason">理由：' + esc(t.reason) + "</div>" : "") +
+        "</div></div>";
+    }).join("") || '<div class="empty">没有待办建议</div>';
+    $("resultTodosWrap").style.display = aiResult.todos.length ? "" : "none";
+
+    $("resultCountdowns").innerHTML = aiResult.countdowns.map(function (c, i) {
+      return '<div class="todo-row">' +
+        '<input type="checkbox" data-k="countdowns" data-i="' + i + '"' + (adopt.countdowns[i] ? " checked" : "") + ">" +
+        '<div class="todo-main"><div class="todo-line"><span class="todo-text">' + esc(c.name) + "</span></div>" +
+        '<div class="todo-edit"><input type="date" class="res-date" data-k="countdowns" data-i="' + i + '" value="' + escAttr(c.date) + '"></div>' +
+        "</div></div>";
+    }).join("") || '<div class="empty">没有倒计时建议</div>';
+    $("resultCountdownsWrap").style.display = aiResult.countdowns.length ? "" : "none";
+
+    $("resultNotes").innerHTML = aiResult.notes.map(function (n, i) {
+      return '<div class="todo-row">' +
+        '<input type="checkbox" data-k="notes" data-i="' + i + '"' + (adopt.notes[i] ? " checked" : "") + ">" +
+        '<div class="todo-main"><div class="todo-line"><span class="todo-text">' + esc(n.text) + "</span></div>" +
+        (n.tags.length ? '<div class="reason">#' + esc(n.tags.join(" #")) + "</div>" : "") +
+        "</div></div>";
+    }).join("") || '<div class="empty">没有笔记</div>';
+    $("resultNotesWrap").style.display = aiResult.notes.length ? "" : "none";
+
+    $("resultShopping").innerHTML = aiResult.shopping.map(function (s, i) {
+      return '<div class="todo-row">' +
+        '<input type="checkbox" data-k="shopping" data-i="' + i + '"' + (adopt.shopping[i] ? " checked" : "") + ">" +
+        '<div class="todo-main"><div class="todo-line"><span class="todo-text">' + esc(s.text) + "</span></div></div></div>";
+    }).join("") || '<div class="empty">没有购物清单</div>';
+    $("resultShoppingWrap").style.display = aiResult.shopping.length ? "" : "none";
+
+    $("resultMarkdown").textContent = aiResult.markdown || "（无 Markdown）";
+  }
+
+  function doProcess() {
+    if (processing) { return; }
+    var text = $("inputText").value.trim();
+    if (!text && !pendingImage) { setStatus("procStatus", "请先输入文字或添加图片", true); return; }
+    var pin = getPin();
+    if (!pin) { setStatus("procStatus", "请先在“设置”里填写口令（APP_PIN）", true); return; }
+    var api = getApi();
+    if (!api) { setStatus("procStatus", "请先在“设置”里填写 Vercel 后端地址", true); return; }
+    processing = true;
+    $("btnProcess").disabled = true;
+    setStatus("procStatus", "AI 秘书正在分析…");
+    postJSON(api + "/api/process", { text: text, imageBase64: pendingImage || "", pin: pin }).then(function (res) {
+      aiResult = normalizeAI(res);
+      adopt = {
+        todos: aiResult.todos.map(function () { return true; }),
+        countdowns: aiResult.countdowns.map(function () { return true; }),
+        notes: aiResult.notes.map(function () { return true; }),
+        shopping: aiResult.shopping.map(function () { return true; })
+      };
+      $("resultPanel").hidden = false;
+      renderResult();
+      if (data.settings.autoAdopt) {
+        setStatus("procStatus", "已开启自动采纳，正在保存…");
+        return adoptAndSave().then(function () {
+          setStatus("procStatus", "自动采纳并保存完成 ✔");
+        }).catch(function (e) {
+          setStatus("procStatus", "自动保存失败：" + e.message, true);
+        });
+      }
+      setStatus("procStatus", "处理完成，请确认安排后保存");
+      return null;
+    }).catch(function (e) {
+      setStatus("procStatus", "处理失败：" + e.message + "（确认后端已部署、口令正确）", true);
+    }).finally(function () {
+      processing = false;
+      $("btnProcess").disabled = false;
+    });
+  }
+
+  function addUnique(arr, key, item) {
+    var exists = arr.some(function (x) {
+      if (key === "text") { return x.text === item.text; }
+      return x.name === item.name && x.date === item.date;
+    });
+    if (!exists) { arr.push(item); }
+  }
+
+  function adoptAndSave() {
+    return new Promise(function (resolve, reject) {
+      if (!aiResult) { reject(new Error("没有可保存的安排")); return; }
+      var now = nowISO();
+      aiResult.todos.forEach(function (t, i) {
+        if (adopt.todos[i]) {
+          addUnique(data.todos, "text", { text: t.text, priority: t.priority, dueDate: t.dueDate, done: false, source: "ai", createdAt: now });
+        }
+      });
+      aiResult.countdowns.forEach(function (c, i) {
+        if (adopt.countdowns[i]) {
+          addUnique(data.countdowns, "name+date", { name: c.name, date: c.date });
+        }
+      });
+      aiResult.notes.forEach(function (n, i) {
+        if (adopt.notes[i]) {
+          addUnique(data.notes, "text", { text: n.text, tags: n.tags, createdAt: now });
+        }
+      });
+      aiResult.shopping.forEach(function (s, i) {
+        if (adopt.shopping[i]) {
+          addUnique(data.shopping, "text", { text: s.text, createdAt: now });
+        }
+      });
+      data.updatedAt = now;
+      persistData();
+      renderTodo();
+      renderCount();
+      renderLayout();
+      setStatus("saveStatus", "已合并到本地，正在保存云端…");
+      saveToCloud("saveStatus", aiResult.markdown).then(function () { resolve(); }).catch(function (e) { reject(e); });
+    });
+  }
+
+  function saveToCloud(statusId, markdown) {
+    return new Promise(function (resolve, reject) {
+      var pin = getPin(), api = getApi();
+      if (!pin || !api) {
+        var msg = "请先在“设置”里填写口令和后端地址";
+        setStatus(statusId, msg, true);
+        reject(new Error(msg));
+        return;
+      }
+      data.updatedAt = nowISO();
+      persistData();
+      postJSON(api + "/api/save", { pin: pin, data: data, markdown: markdown || "" }).then(function () {
+        setStatus(statusId, "已保存到 GitHub 云端 ✔");
+        resolve();
+      }).catch(function (e) {
+        setStatus(statusId, "保存失败：" + e.message + "（确认后端已部署、口令正确）", true);
+        reject(e);
+      });
+    });
+  }
+
+  /* ---------- 待办页 ---------- */
+  function renderTodo() {
+    var box = $("todoList");
+    if (!data.todos.length) {
+      box.innerHTML = '<div class="empty">还没有待办<br>去“记录”里让 AI 秘书帮你安排</div>';
+      return;
+    }
+    box.innerHTML = data.todos.map(function (t, i) {
+      return '<div class="todo-row' + (t.done ? " todo-done" : "") + '">' +
+        '<input type="checkbox" class="td-done" data-i="' + i + '"' + (t.done ? " checked" : "") + ">" +
+        '<div class="todo-main">' +
+        '<div class="todo-line"><span class="badge badge-' + esc(t.priority || "中") + '">' + esc(t.priority || "中") + "</span>" +
+        '<span class="todo-text">' + esc(t.text) + "</span></div>" +
+        '<div class="todo-edit">' +
+        '<input type="text" class="td-text" data-i="' + i + '" value="' + escAttr(t.text) + '">' +
+        '<input type="date" class="td-date" data-i="' + i + '" value="' + escAttr(t.dueDate || "") + '">' +
+        "</div></div>" +
+        '<button type="button" class="x td-del" data-i="' + i + '" aria-label="删除">×</button></div>';
+    }).join("");
+  }
+
+  /* ---------- 倒计时页 ---------- */
+  function daysUntil(dateStr) {
+    if (!dateStr) { return null; }
+    var target = new Date(dateStr + "T00:00:00");
+    return Math.ceil((target.getTime() - Date.now()) / 86400000);
+  }
+
+  function renderCount() {
+    var box = $("countList");
+    if (!data.countdowns.length) {
+      box.innerHTML = '<div class="empty">还没有倒计时<br>可在下方添加，或让 AI 秘书识别日期</div>';
+      return;
+    }
+    box.innerHTML = data.countdowns.map(function (c, i) {
+      var d = daysUntil(c.date);
+      var txt = d === null ? "未填日期" : (d > 0 ? "还有 " + d + " 天" : d === 0 ? "就是今天！" : "已过 " + (-d) + " 天");
+      return '<div class="count-row">' +
+        '<div class="count-info">' +
+        '<div class="count-edit">' +
+        '<input type="text" class="cd-name" data-i="' + i + '" value="' + escAttr(c.name) + '">' +
+        '<input type="date" class="cd-date" data-i="' + i + '" value="' + escAttr(c.date || "") + '">' +
+        "</div>" +
+        '<div class="count-days' + (d === 0 ? " today" : "") + '">' + esc(txt) + "</div>" +
+        "</div>" +
+        '<button type="button" class="x cd-del" data-i="' + i + '" aria-label="删除">×</button></div>';
+    }).join("");
+  }
+
+  /* ---------- 设置页 ---------- */
+  function fillSettings() {
+    $("setApi").value = getApi() || "";
+    $("setRaw").value = getRaw() || "";
+    $("setPin").value = getPin() || "";
+    $("setCity").value = data.settings.city || "";
+    $("setLat").value = data.settings.lat || "";
+    $("setLon").value = data.settings.lon || "";
+    $("autoAdopt").checked = !!data.settings.autoAdopt;
+  }
+
+  function renderLayout() {
+    var list = $("layoutList");
+    var order = data.layout.order;
+    var html = order.map(function (name, i) {
+      return '<div class="layout-row"><span class="name">' + (i + 1) + ". " + esc(MODULE_LABELS[name] || name) + "</span>" +
+        '<button type="button" class="mv" data-dir="up" data-i="' + i + '"' + (i === 0 ? " disabled" : "") + ">↑</button>" +
+        '<button type="button" class="mv" data-dir="down" data-i="' + i + '"' + (i === order.length - 1 ? " disabled" : "") + ">↓</button></div>";
+    }).join("");
+    html += order.filter(function (n) { return n !== "header"; }).map(function (n) {
+      return '<div class="height-row"><label>' + esc(MODULE_LABELS[n] || n) + " 高度(px)</label>" +
+        '<input type="number" class="h-in" data-name="' + n + '" value="' + (data.layout.heights[n] || 160) + '" min="60" step="10"></div>';
+    }).join("");
+    list.innerHTML = html;
+  }
+
+  function renderAll() {
+    renderHeaderDate();
+    renderTodo();
+    renderCount();
+    renderLayout();
+    fillSettings();
+  }
+
+  /* ---------- 云端读取 ---------- */
+  function fetchRemoteData(force) {
+    var raw = getRaw();
+    if (!raw) {
+      if (force) { setStatus("settingsStatus", "未配置云端数据地址", true); }
+      return Promise.resolve();
+    }
+    if (force) { setStatus("settingsStatus", "正在从云端读取…"); }
+    var ctrl = ("AbortController" in window) ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) { ctrl.abort(); } }, 15000);
+    return fetch(raw + "/data.json", { cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) {
+        if (!r.ok) { throw new Error("HTTP " + r.status); }
+        return r.json();
+      })
+      .then(function (remote) {
+        if (force || !data.updatedAt || ((remote.updatedAt || "") > data.updatedAt)) {
+          data = normalize(remote);
+          persistData();
+          renderAll();
+          if (force) { setStatus("settingsStatus", "已从云端同步 ✔"); }
+        } else if (force) {
+          setStatus("settingsStatus", "云端没有新数据");
+        }
+      })
+      .catch(function (e) {
+        if (force) { setStatus("settingsStatus", "云端读取失败：" + e.message, true); }
+      })
+      .finally(function () { clearTimeout(timer); });
+  }
+
+  /* ---------- 标题栏日期 ---------- */
+  function renderHeaderDate() {
+    var n = new Date();
+    var week = ["日", "一", "二", "三", "四", "五", "六"];
+    $("headerDate").textContent = (n.getMonth() + 1) + "月" + n.getDate() + "日 周" + week[n.getDay()];
+  }
+
+  /* ---------- 事件绑定 ---------- */
+  function bindRecord() {
+    var fileInput = $("fileInput");
+    $("btnCamera").addEventListener("click", function () { fileInput.setAttribute("capture", "environment"); fileInput.click(); });
+    $("btnGallery").addEventListener("click", function () { fileInput.removeAttribute("capture"); fileInput.click(); });
+    fileInput.addEventListener("change", function () {
+      var f = fileInput.files && fileInput.files[0];
+      if (!f) { return; }
+      setStatus("procStatus", "正在压缩图片…");
+      fileToDataURL(f).then(function (url) {
+        pendingImage = url;
+        $("previewImg").src = url;
+        $("previewWrap").hidden = false;
+        setStatus("procStatus", "图片已就绪，点“AI 秘书处理”");
+      }).catch(function (e) {
+        setStatus("procStatus", "图片处理失败：" + e.message, true);
+      });
+      fileInput.value = "";
+    });
+    $("btnRemoveImg").addEventListener("click", function () {
+      pendingImage = null;
+      $("previewWrap").hidden = true;
+      $("previewImg").src = "";
+    });
+    $("btnProcess").addEventListener("click", doProcess);
+    $("btnAdoptAll").addEventListener("click", function () {
+      if (!aiResult) { return; }
+      aiResult.todos.forEach(function (_, i) { adopt.todos[i] = true; });
+      aiResult.countdowns.forEach(function (_, i) { adopt.countdowns[i] = true; });
+      aiResult.notes.forEach(function (_, i) { adopt.notes[i] = true; });
+      aiResult.shopping.forEach(function (_, i) { adopt.shopping[i] = true; });
+      renderResult();
+    });
+    $("btnSave").addEventListener("click", function () { adoptAndSave().catch(function () {}); });
+  }
+
+  function bindResultEvents() {
+    $("resultPanel").addEventListener("change", function (e) {
+      var el = e.target;
+      if (!el.dataset || !el.dataset.k) { return; }
+      var k = el.dataset.k;
+      var i = parseInt(el.dataset.i, 10);
+      if (!aiResult || !aiResult[k] || isNaN(i) || !aiResult[k][i]) { return; }
+      if (el.type === "checkbox") {
+        adopt[k][i] = el.checked;
+      } else if (el.classList.contains("res-date")) {
+        aiResult[k][i].dueDate = el.value;
+        if (k === "countdowns") { aiResult[k][i].date = el.value; }
+      } else if (el.classList.contains("res-pri")) {
+        aiResult[k][i].priority = el.value;
+      }
+    });
+  }
+
+  function bindTodo() {
+    $("todoList").addEventListener("change", function (e) {
+      var el = e.target;
+      var i = parseInt(el.dataset.i, 10);
+      if (isNaN(i) || !data.todos[i]) { return; }
+      if (el.classList.contains("td-done")) { data.todos[i].done = el.checked; persistData(); renderTodo(); }
+      else if (el.classList.contains("td-text")) { data.todos[i].text = el.value; persistData(); }
+      else if (el.classList.contains("td-date")) { data.todos[i].dueDate = el.value; persistData(); }
+    });
+    $("todoList").addEventListener("click", function (e) {
+      var el = e.target;
+      if (el.classList.contains("td-del")) {
+        var i = parseInt(el.dataset.i, 10);
+        if (!isNaN(i) && data.todos[i]) { data.todos.splice(i, 1); persistData(); renderTodo(); }
+      }
+    });
+    $("btnAddTodo").addEventListener("click", function () {
+      var v = $("newTodoText").value.trim();
+      data.todos.push({ text: v || "新待办", priority: "中", dueDate: "", done: false, source: "manual", createdAt: nowISO() });
+      $("newTodoText").value = "";
+      persistData();
+      renderTodo();
+    });
+    $("btnSaveTodo").addEventListener("click", function () { saveToCloud("todoStatus").catch(function () {}); });
+  }
+
+  function bindCount() {
+    $("countList").addEventListener("change", function (e) {
+      var el = e.target;
+      var i = parseInt(el.dataset.i, 10);
+      if (isNaN(i) || !data.countdowns[i]) { return; }
+      if (el.classList.contains("cd-name")) { data.countdowns[i].name = el.value; persistData(); }
+      else if (el.classList.contains("cd-date")) { data.countdowns[i].date = el.value; persistData(); renderCount(); }
+    });
+    $("countList").addEventListener("click", function (e) {
+      var el = e.target;
+      if (el.classList.contains("cd-del")) {
+        var i = parseInt(el.dataset.i, 10);
+        if (!isNaN(i) && data.countdowns[i]) { data.countdowns.splice(i, 1); persistData(); renderCount(); }
+      }
+    });
+    $("btnAddCount").addEventListener("click", function () {
+      var name = $("newCountName").value.trim();
+      var date = $("newCountDate").value;
+      if (!name) { setStatus("countStatus", "请填写名称", true); return; }
+      data.countdowns.push({ name: name, date: date });
+      $("newCountName").value = "";
+      $("newCountDate").value = "";
+      persistData();
+      renderCount();
+      setStatus("countStatus", "已添加，记得保存到云端");
+    });
+    $("btnSaveCount").addEventListener("click", function () { saveToCloud("countStatus").catch(function () {}); });
+  }
+
+  function bindSettings() {
+    $("btnSaveConn").addEventListener("click", function () {
+      var api = $("setApi").value.trim().replace(/\/+$/, "");
+      var raw = $("setRaw").value.trim().replace(/\/+$/, "");
+      var pin = $("setPin").value.trim();
+      if (pin && (pin.length < 4 || pin.length > 6)) { setStatus("connStatus", "口令需为 4~6 位", true); return; }
+      try {
+        if (api) { localStorage.setItem(LS_API, api); } else { localStorage.removeItem(LS_API); }
+        if (raw) { localStorage.setItem(LS_RAW, raw); } else { localStorage.removeItem(LS_RAW); }
+        if (pin) { localStorage.setItem(LS_PIN, pin); } else { localStorage.removeItem(LS_PIN); }
+      } catch (e) {}
+      setStatus("connStatus", "连接信息已保存 ✔");
+    });
+    $("btnSaveLoc").addEventListener("click", function () {
+      data.settings.city = $("setCity").value.trim() || "温州";
+      data.settings.lat = $("setLat").value.trim() || "27.99";
+      data.settings.lon = $("setLon").value.trim() || "120.70";
+      persistData();
+      setStatus("locStatus", "位置已保存 ✔（同步到云端后，次日仪表盘生效）");
+    });
+    $("autoAdopt").addEventListener("change", function () {
+      data.settings.autoAdopt = $("autoAdopt").checked;
+      persistData();
+      setStatus("settingsStatus", "自动采纳：" + (data.settings.autoAdopt ? "开" : "关") + " ✔");
+    });
+    $("layoutList").addEventListener("click", function (e) {
+      var el = e.target;
+      if (!el.classList.contains("mv")) { return; }
+      var i = parseInt(el.dataset.i, 10);
+      var dir = el.dataset.dir;
+      var order = data.layout.order;
+      var j = dir === "up" ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || i >= order.length || j >= order.length) { return; }
+      var tmp = order[i];
+      order[i] = order[j];
+      order[j] = tmp;
+      persistData();
+      renderLayout();
+    });
+    $("layoutList").addEventListener("change", function (e) {
+      var el = e.target;
+      if (el.classList.contains("h-in")) {
+        var v = parseInt(el.value, 10);
+        if (!isNaN(v)) { data.layout.heights[el.dataset.name] = v; persistData(); }
+      }
+    });
+    $("btnSaveLayout").addEventListener("click", function () {
+      persistData();
+      setStatus("layoutStatus", "布局已保存 ✔（同步到云端后，次日仪表盘生效）");
+    });
+    $("btnCloudRefresh").addEventListener("click", function () { fetchRemoteData(true); });
+    $("btnClearCache").addEventListener("click", function () {
+      if (!window.confirm("确定清空本机缓存？将重新从云端读取。")) { return; }
+      try { localStorage.removeItem(LS_DATA); } catch (e) {}
+      location.reload();
+    });
+  }
+
+  function bindEvents() {
+    document.querySelectorAll(".tab-bar button").forEach(function (b) {
+      b.addEventListener("click", function () { showTab(b.dataset.tab); });
+    });
+    bindRecord();
+    bindResultEvents();
+    bindTodo();
+    bindCount();
+    bindSettings();
+  }
+
+  function registerSW() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(function () {});
+    }
+  }
+
+  function init() {
+    loadData();
+    bindEvents();
+    renderAll();
+    showTab("record");
+    registerSW();
+    setInterval(renderHeaderDate, 60000);
+    fetchRemoteData(false);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

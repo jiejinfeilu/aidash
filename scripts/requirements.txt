@@ -1,0 +1,3 @@
+# AiDash Python 依赖
+# 说明：EPUB 使用 Python 内置 zipfile 生成，不需要 ebooklib。
+Pillow>=10.0
