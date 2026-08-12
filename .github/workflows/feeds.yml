@@ -1,0 +1,31 @@
+name: Fetch Hotlists
+
+on:
+  schedule:
+    # 每 30 分钟抓一次热榜（GitHub Actions 的 cron 是 UTC 时间，抓热榜无需换算）
+    - cron: '*/30 * * * *'
+  workflow_dispatch:   # 支持手动触发：Actions 页面点 Run workflow
+
+permissions:
+  contents: write      # 允许把 feeds.json 提交回仓库
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 抓取热榜
+        run: node scripts/fetch-feeds.js
+
+      - name: 提交 feeds.json（有变化才提交）
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: 更新 feeds.json'
+          file_pattern: feeds.json

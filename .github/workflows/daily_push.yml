@@ -1,0 +1,38 @@
+name: Daily Kindle Push
+
+on:
+  schedule:
+    # 23:30 UTC = 北京时间（UTC+8）07:30
+    - cron: '30 23 * * *'
+  workflow_dispatch:   # 支持手动触发测试
+
+permissions:
+  contents: read       # 只需要读仓库（图片/EPUB 不提交）
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: pip install -r scripts/requirements.txt
+
+      - name: 生成仪表盘图并推送到 Kindle
+        env:
+          # 自动使用当前仓库的 raw 地址（无需手动填用户名）
+          RAW_BASE: https://raw.githubusercontent.com/${{ github.repository }}/main
+          # 以下 6 个来自仓库 Secrets（Settings → Secrets and variables → Actions）
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_AUTH_CODE: ${{ secrets.SMTP_AUTH_CODE }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          KINDLE_EMAIL: ${{ secrets.KINDLE_EMAIL }}
+        run: python scripts/send_to_kindle.py
