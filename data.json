@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "updatedAt": "2026-08-12T15:18:01.402Z",
+  "todos": [
+    {
+      "text": "周六前把房租转给房东",
+      "priority": "高",
+      "dueDate": "2026-08-15",
+      "done": false,
+      "source": "ai",
+      "createdAt": "2026-08-12T15:18:01.396Z"
+    },
+    {
+      "text": "参加10月3日的婚礼",
+      "priority": "中",
+      "dueDate": "2026-10-03",
+      "done": false,
+      "source": "ai",
+      "createdAt": "2026-08-12T15:18:01.396Z"
+    }
+  ],
+  "countdowns": [
+    {
+      "name": "参加婚礼",
+      "date": "2026-10-03"
+    }
+  ],
+  "notes": [],
+  "shopping": [],
+  "layout": {
+    "order": [
+      "header",
+      "weather",
+      "feeds",
+      "countdown",
+      "todo",
+      "notes",
+      "quote"
+    ],
+    "heights": {
+      "weather": 170,
+      "feeds": 300,
+      "countdown": 150,
+      "todo": 240,
+      "notes": 180,
+      "quote": 90
+    }
+  },
+  "settings": {
+    "city": "温州",
+    "lat": "27.99",
+    "lon": "120.70",
+    "autoAdopt": false
+  }
+}
